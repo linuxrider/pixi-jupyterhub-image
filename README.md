@@ -44,6 +44,8 @@ c.DockerSpawner.image = "ghcr.io/your-org/pixi-jupyterhub:latest"
 c.DockerSpawner.network_name = "jupyterhub"
 ```
 
+The image automatically activates the pixi environment on startup.
+
 For Kubernetes:
 
 ```python
