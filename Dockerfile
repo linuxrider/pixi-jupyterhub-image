@@ -11,4 +11,7 @@ RUN pixi install
 COPY entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+ENV JUPYTER_PORT=8888
+EXPOSE $JUPYTER_PORT
+
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
