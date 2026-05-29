@@ -12,9 +12,16 @@ polars = "*"
 ipykernel = "*"
 jupyterlab = "*"
 jupyterhub-singleuser = "*"
+tini = "*"
 
 [tasks]
 build = "docker build -t pixi-jupyterhub ."
+run-lab = { cmd = """
+docker run --rm -it -p 8888:8888 \
+  pixi-jupyterhub \
+  jupyter lab --ip=0.0.0.0 --no-browser --LabApp.token=''
+""", depends-on = ["build"] }
+shell = { cmd = "docker run --rm -it --user root pixi-jupyterhub bash", depends-on = ["build"] }
 test = { cmd = """
 docker run --rm -it -p 8888:8888 \
   -e JUPYTERHUB_API_TOKEN=localtest \
