@@ -12,3 +12,17 @@ polars = "*"
 ipykernel = "*"
 jupyterlab = "*"
 jupyterhub-singleuser = "*"
+
+[tasks]
+build = "docker build -t pixi-jupyterhub ."
+test = { cmd = """
+docker run --rm -it -p 8888:8888 \
+  -e JUPYTERHUB_API_TOKEN=localtest \
+  -e JUPYTERHUB_USER=testuser \
+  -e JUPYTERHUB_SERVER_NAME="" \
+  -e JUPYTERHUB_API_URL=http://localhost:8000/hub/api \
+  -e JUPYTERHUB_BASE_URL=/ \
+  -e JUPYTERHUB_SERVICE_URL=http://localhost:8888 \
+  pixi-jupyterhub \
+  jupyterhub-singleuser
+""", depends-on = ["build"] }

@@ -1,4 +1,4 @@
-FROM ghcr.io/prefix-dev/pixi:0.68.0
+FROM ghcr.io/prefix-dev/pixi:0.69.0
 
 WORKDIR /workspace
 
