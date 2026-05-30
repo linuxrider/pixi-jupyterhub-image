@@ -1,50 +1,75 @@
 # Pixi + JupyterHub Spawner Image
 
-A minimal Docker image for JupyterHub single-user servers with Pixi package management.
+A minimal Docker image for JupyterHub single-user servers using Pixi for package management.
 
-This image is designed to be spawned by JupyterHub's `DockerSpawner` or Kubernetes spawner. It provides users with JupyterLab, Pixi, and a minimal Python environment.
+Designed to be spawned by JupyterHub's `DockerSpawner` or Kubernetes spawner.
 
 ## What's Included
 
-- **Python 3.14** via Pixi
-- **JupyterLab** for the notebook interface
-- **Pixi** package manager for installing additional packages
-- **NumPy, Pandas, Polars** as example data libraries (customize in `pixi.toml`)
+- **Python 3.14** via Pixi (conda-forge)
+- **JupyterLab** notebook interface
+- **jupyterhub-singleuser** server extension
+- **ipykernel** Python kernel for notebooks
+- **tini** init process (PID 1, signal handling, zombie reaping)
+- Non-root user `jovyan` (UID 1000), matching official Jupyter Docker Stacks convention
 
-## Usage
+## Architecture
 
-### Build
-
-```bash
-docker build -t pixi-jupyterhub:latest .
+```
+ghcr.io/prefix-dev/pixi:0.69.0  (Ubuntu base + pixi binary)
+         ↓
+  rename ubuntu → jovyan (UID 1000)
+  pixi install --locked → /workspace/.pixi/envs/default/
+  copy tini to /usr/local/bin/
+         ↓
+ENTRYPOINT: tini -g -- entrypoint.sh
+CMD:        jupyterhub-singleuser
 ```
 
-Or push to a registry:
+At startup, `entrypoint.sh` runs `pixi shell-hook` to activate the environment (prepends `/workspace/.pixi/envs/default/bin` to `PATH`), then execs the command.
+
+## Prerequisites
+
+- [Pixi](https://pixi.sh) installed
+- Docker installed and the current user in the `docker` group (all tasks invoke Docker)
+
+## Local Development
 
 ```bash
-docker build -t ghcr.io/your-org/pixi-jupyterhub:latest .
-docker push ghcr.io/your-org/pixi-jupyterhub:latest
+# Build image
+pixi run build
+
+# Verify image: user, Python, JupyterLab, jupyterhub-singleuser, tini (non-interactive)
+pixi run check
+
+# Run standalone JupyterLab (no hub required, open http://localhost:8888)
+pixi run run-lab
+
+# Drop into a shell as root (for debugging)
+pixi run shell
+
+# Drop into a shell as jovyan (runtime user)
+pixi run shell-user
+
+# Simulate JupyterHub spawn env vars (hub connection will fail without a real hub)
+pixi run test
+
+# Full integration test: spin up JupyterHub, spawn the image, verify end-to-end
+pixi run hub-test
+
+# Interactive: spin up JupyterHub at http://localhost:8000 (login: any user, password: localtest)
+pixi run hub-serve
 ```
-
-### Local Testing
-
-```bash
-docker run -p 8888:8888 pixi-jupyterhub:latest
-```
-
-Then open `http://localhost:8888` in your browser.
 
 ## JupyterHub Deployment
 
-Configure your JupyterHub `jupyterhub_config.py`:
+Configure `jupyterhub_config.py` for DockerSpawner:
 
 ```python
 c.JupyterHub.spawner_class = "dockerspawner.DockerSpawner"
 c.DockerSpawner.image = "ghcr.io/your-org/pixi-jupyterhub:latest"
 c.DockerSpawner.network_name = "jupyterhub"
 ```
-
-The image automatically activates the pixi environment on startup.
 
 For Kubernetes:
 
@@ -62,45 +87,37 @@ Edit `pixi.toml` to add or remove packages:
 python = "3.14.*"
 jupyterlab = "*"
 jupyterhub-singleuser = "*"
-numpy = "*"
+tini = "*"
 your-package = "*"
 ```
 
-Then regenerate the lock file and rebuild:
+Regenerate the lock file and rebuild:
 
 ```bash
-pixi lock
-docker build -t pixi-jupyterhub:latest .
+pixi install
+pixi run build
 ```
 
-## Architecture
+## Custom User / UID
 
-- **Base image**: `ghcr.io/prefix-dev/pixi:0.68.0` — includes Pixi
-- **Build time**: Single `pixi install` from locked dependencies
-- **Runtime**: JupyterHub spawns `jupyterhub-singleuser` inside the container
-
-The image is kept minimal — users can install additional packages via `pixi add` within JupyterLab if needed.
-
-## Development
-
-To update dependencies:
+The image exposes `NB_USER` (default: `jovyan`) and `NB_UID` (default: `1000`) as build args.
+The base image already has `ubuntu` at UID 1000, which is renamed at build time.
+To use a different name, rebuild with:
 
 ```bash
-pixi add new-package
-pixi lock
+docker build --build-arg NB_USER=myuser -t pixi-jupyterhub .
 ```
 
-To test locally before pushing:
-
-```bash
-docker build -t pixi-jupyterhub:test .
-docker run -p 8888:8888 pixi-jupyterhub:test
-```
+Note: changing `NB_UID` requires a base image where that UID is free.
 
 ## GitHub Actions
 
-This repository includes a GitHub Actions workflow that:
-- Lints the Dockerfile
-- Builds and pushes to GHCR on `main` branch and `v*` tags
-- Caches build layers for faster rebuilds
-- Auto-generates semantic version tags
+Images are built and pushed to GHCR on every branch push and version tag:
+
+| Trigger | Tags produced |
+|---|---|
+| push to `main` | `latest`, `main`, `main-<sha>` |
+| push to any branch | `<branch>`, `<branch>-<sha>` |
+| `v1.2.3` tag | `1.2.3`, `1.2` |
+
+Configure the registry in the workflow if pushing to your own org.

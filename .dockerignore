@@ -1,6 +1,7 @@
 .git
 .github
-README.md
-docker-compose.yml
 .gitignore
 .dockerignore
+.pixi
+README.md
+tests/

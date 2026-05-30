@@ -5,23 +5,45 @@ channels = ["conda-forge"]
 platforms = ["linux-64"]
 
 [dependencies]
-python = "3.14.*"
-numpy = "*"
-pandas = "*"
-polars = "*"
-ipykernel = "*"
-jupyterlab = "*"
-jupyterhub-singleuser = "*"
-tini = "*"
+python = ">=3.14.5,<3.15"
+ipykernel = ">=7.2.0,<8"
+jupyterlab = ">=4.5.7,<5"
+jupyterhub-singleuser = ">=5.4.6,<6"
+tini = ">=0.19.0,<0.20"
+
+[feature.dev.dependencies]
+jupyterhub = ">=5.4.6,<6"
+dockerspawner = ">=14.0.0,<15"
+
+[feature.dev.tasks]
+_hub-test = "bash tests/hub-test.sh"
+_hub-serve = "bash tests/hub-serve.sh"
+
+[environments]
+dev = ["dev"]
 
 [tasks]
-build = "docker build -t pixi-jupyterhub ."
+build = "docker build -t pixi-jupyterhub -f docker/Dockerfile ."
+hub-test = "pixi run -e dev _hub-test"
+hub-serve = "pixi run -e dev _hub-serve"
+hub-cleanup = "bash -c 'pkill -9 -f jupyterhub; pkill -9 -f configurable-http-proxy; docker ps -q --filter label=jhub-network | xargs -r docker rm -f' || true"
+check = { cmd = """
+docker run --rm pixi-jupyterhub bash -c '
+  echo "=== user ===" && id &&
+  echo "=== python ===" && python --version &&
+  echo "=== jupyter ===" && jupyter lab --version &&
+  echo "=== hub ===" && jupyterhub-singleuser --version &&
+  echo "=== tini ===" && tini --version &&
+  echo "OK"
+'
+""" }
 run-lab = { cmd = """
 docker run --rm -it -p 8888:8888 \
   pixi-jupyterhub \
-  jupyter lab --ip=0.0.0.0 --no-browser --LabApp.token=''
-""", depends-on = ["build"] }
-shell = { cmd = "docker run --rm -it --user root pixi-jupyterhub bash", depends-on = ["build"] }
+  jupyter lab --ip=0.0.0.0 --no-browser --ServerApp.token=''
+""" }
+shell = { cmd = "docker run --rm -it --user root pixi-jupyterhub bash" }
+shell-user = { cmd = "docker run --rm -it pixi-jupyterhub bash" }
 test = { cmd = """
 docker run --rm -it -p 8888:8888 \
   -e JUPYTERHUB_API_TOKEN=localtest \
@@ -30,6 +52,5 @@ docker run --rm -it -p 8888:8888 \
   -e JUPYTERHUB_API_URL=http://localhost:8000/hub/api \
   -e JUPYTERHUB_BASE_URL=/ \
   -e JUPYTERHUB_SERVICE_URL=http://localhost:8888 \
-  pixi-jupyterhub \
-  jupyterhub-singleuser
-""", depends-on = ["build"] }
+  pixi-jupyterhub
+""" }

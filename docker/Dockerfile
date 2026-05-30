@@ -20,7 +20,7 @@ RUN pixi install --locked && \
     cp /workspace/.pixi/envs/default/bin/tini /usr/local/bin/tini && \
     chown -R ${NB_UID}:${NB_UID} /workspace
 
-COPY entrypoint.sh /usr/local/bin/
+COPY docker/entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENV JUPYTER_PORT=8888
