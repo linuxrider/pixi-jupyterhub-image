@@ -15,7 +15,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     usermod -l ${NB_USER} ubuntu && \
     groupmod -n ${NB_USER} ubuntu && \
-    usermod -d /home/${NB_USER} -m ${NB_USER}
+    usermod -d /home/${NB_USER} -m ${NB_USER} && \
+    chown -R ${NB_UID}:${NB_UID} /home/${NB_USER}
 
 WORKDIR /workspace
 
