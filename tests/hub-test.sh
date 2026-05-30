@@ -14,18 +14,28 @@ cleanup() {
     [ $_CLEANED -eq 1 ] && return; _CLEANED=1
     echo "=== cleanup ==="
     if [ -n "$HUB_PID" ] && kill -0 "$HUB_PID" 2>/dev/null; then
-        PGID=$(ps -o pgid= -p "$HUB_PID" 2>/dev/null | tr -d ' ')
-        [ -n "$PGID" ] && kill -- -"$PGID" 2>/dev/null || kill "$HUB_PID" 2>/dev/null
+        kill "$HUB_PID" 2>/dev/null || true
+        pkill -P "$HUB_PID" 2>/dev/null || true
+        sleep 1
+        kill -9 "$HUB_PID" 2>/dev/null || true
+        pkill -9 -P "$HUB_PID" 2>/dev/null || true
         wait "$HUB_PID" 2>/dev/null || true
     fi
+    pkill -9 -f 'bin/jupyterhub' 2>/dev/null || true
+    pkill -9 -f 'configurable-http-proxy' 2>/dev/null || true
     docker ps --filter "label=jhub-network=$NETWORK" -q | xargs -r docker rm -f 2>/dev/null || true
     docker network rm "$NETWORK" 2>/dev/null || true
     rm -rf "$WORK_DIR"
 }
 trap cleanup EXIT INT TERM
 
-echo "=== Building image: $IMAGE ==="
-docker build -t "$IMAGE" -f docker/Dockerfile .
+pkill -9 -f 'bin/jupyterhub' 2>/dev/null || true
+pkill -9 -f 'configurable-http-proxy' 2>/dev/null || true
+
+if [ "${JHUB_SKIP_BUILD:-0}" != "1" ]; then
+    echo "=== Building image: $IMAGE ==="
+    docker build -t "$IMAGE" -f docker/Dockerfile .
+fi
 
 echo "=== Creating Docker network: $NETWORK ==="
 docker network create "$NETWORK"

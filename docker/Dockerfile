@@ -9,7 +9,10 @@ ENV NB_USER=${NB_USER} \
     LC_ALL=C.UTF-8 \
     LANG=C.UTF-8
 
-RUN usermod -l ${NB_USER} ubuntu && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends tini && \
+    rm -rf /var/lib/apt/lists/* && \
+    usermod -l ${NB_USER} ubuntu && \
     groupmod -n ${NB_USER} ubuntu && \
     usermod -d /home/${NB_USER} -m ${NB_USER}
 
@@ -17,7 +20,6 @@ WORKDIR /workspace
 
 COPY pixi.toml pixi.lock ./
 RUN pixi install --locked && \
-    cp /workspace/.pixi/envs/default/bin/tini /usr/local/bin/tini && \
     chown -R ${NB_UID}:${NB_UID} /workspace
 
 COPY docker/entrypoint.sh /usr/local/bin/

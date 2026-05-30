@@ -15,15 +15,24 @@ cleanup() {
     echo ""
     echo "=== cleanup ==="
     if [ -n "$HUB_PID" ] && kill -0 "$HUB_PID" 2>/dev/null; then
-        PGID=$(ps -o pgid= -p "$HUB_PID" 2>/dev/null | tr -d ' ')
-        [ -n "$PGID" ] && kill -- -"$PGID" 2>/dev/null || kill "$HUB_PID" 2>/dev/null
+        kill "$HUB_PID" 2>/dev/null || true
+        pkill -P "$HUB_PID" 2>/dev/null || true
+        sleep 1
+        kill -9 "$HUB_PID" 2>/dev/null || true
+        pkill -9 -P "$HUB_PID" 2>/dev/null || true
         wait "$HUB_PID" 2>/dev/null || true
     fi
+    pkill -9 -f 'bin/jupyterhub' 2>/dev/null || true
+    pkill -9 -f 'configurable-http-proxy' 2>/dev/null || true
     docker ps --filter "label=jhub-network=$NETWORK" -q | xargs -r docker rm -f 2>/dev/null || true
     docker network rm "$NETWORK" 2>/dev/null || true
     rm -rf "$WORK_DIR"
 }
 trap cleanup EXIT INT TERM
+
+echo "=== Killing any stray hub processes ==="
+pkill -9 -f 'bin/jupyterhub' 2>/dev/null || true
+pkill -9 -f 'configurable-http-proxy' 2>/dev/null || true
 
 echo "=== Building image: $IMAGE ==="
 docker build -t "$IMAGE" -f docker/Dockerfile .

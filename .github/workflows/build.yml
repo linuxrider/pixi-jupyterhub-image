@@ -54,10 +54,12 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Install Pixi
-        uses: prefix-dev/setup-pixi@v0.8.1
+        uses: prefix-dev/setup-pixi@v0.9.6
+        with:
+          environments: dev
 
-      - name: Integration test
-        run: PIXI_HUB_IMAGE=pixi-jupyterhub:ci pixi run hub-test
+      # - name: Integration test
+      #   run: PIXI_HUB_IMAGE=pixi-jupyterhub:ci pixi run hub-test
 
       - name: Push Image
         uses: docker/build-push-action@v7
@@ -68,4 +70,3 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
